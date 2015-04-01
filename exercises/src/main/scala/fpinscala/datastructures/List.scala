@@ -96,11 +96,20 @@ object List { // `List` companion object. Contains functions for creating and wo
     foldRight(l, Nil: List[B])((h, a) => Cons(f(h), a))
 
   def add1 (l:List[Int]): List[Int] = map(l)(_+1)
-  def strigier (l:List[Double]): List[String] = map(l)(_.toString)
+  def strigier (l:List[Double]): String = foldLeft(map(l)(_.toString), "")(_ + _)
 
   def filter[A](l: List[A])(f: A => Boolean): List[A] =
     foldLeft(l, Nil:List[A])((b, a) => f(a) match {
       case true => Cons(a, b)
       case _ => b
     })
+
+  def flatMap[A,B](as: List[A])(f: A => List[B]): List[B] = flatten(map(as)(f))
+
+  def filterFM[A](l: List[A])(f: A => Boolean): List[A] = {
+    flatMap(l){(a) => f(a) match {
+      case true => Cons(a, Nil)
+      case false => Nil
+    }}
+  }
 }
