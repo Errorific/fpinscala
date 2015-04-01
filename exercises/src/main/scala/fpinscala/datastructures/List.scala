@@ -8,24 +8,24 @@ object List { // `List` companion object. Contains functions for creating and wo
   def sum(ints: List[Int]): Int = ints match { // A function that uses pattern matching to add up a list of integers
     case Nil => 0 // The sum of the empty list is 0.
     case Cons(x,xs) => x + sum(xs) // The sum of a list starting with `x` is `x` plus the sum of the rest of the list.
-  } 
-  
+  }
+
   def product(ds: List[Double]): Double = ds match {
     case Nil => 1.0
     case Cons(0.0, _) => 0.0
     case Cons(x,xs) => x * product(xs)
   }
-  
+
   def apply[A](as: A*): List[A] = // Variadic function syntax
     if (as.isEmpty) Nil
     else Cons(as.head, apply(as.tail: _*))
 
   val x = List(1,2,3,4,5) match {
     case Cons(x, Cons(2, Cons(4, _))) => x
-    case Nil => 42 
+    case Nil => 42
     case Cons(x, Cons(y, Cons(3, Cons(4, _)))) => x + y
     case Cons(h, t) => h + sum(t)
-    case _ => 101 
+    case _ => 101
   }
 
   def append[A](a1: List[A], a2: List[A]): List[A] =
@@ -39,27 +39,68 @@ object List { // `List` companion object. Contains functions for creating and wo
       case Nil => z
       case Cons(x, xs) => f(x, foldRight(xs, z)(f))
     }
-  
-  def sum2(ns: List[Int]) = 
+
+  def sum2(ns: List[Int]) =
     foldRight(ns, 0)((x,y) => x + y)
-  
-  def product2(ns: List[Double]) = 
+
+  def product2(ns: List[Double]) =
     foldRight(ns, 1.0)(_ * _) // `_ * _` is more concise notation for `(x,y) => x * y`; see sidebar
 
 
-  def tail[A](l: List[A]): List[A] = sys.error("todo")
+  def tail[A](l: List[A]): List[A] = l match {
+    case Cons(_, t) => t
+    case _ => l
+  }
 
-  def setHead[A](l: List[A], h: A): List[A] = sys.error("todo")
+  def setHead[A](l: List[A], h: A): List[A] = Cons(h, tail(l))
 
-  def drop[A](l: List[A], n: Int): List[A] = sys.error("todo")
+  def drop[A](l: List[A], n: Int): List[A] = l match {
+    case Cons(_, t) if n > 0 => drop(l, n-1)
+    case _ => l
+  }
 
-  def dropWhile[A](l: List[A], f: A => Boolean): List[A] = sys.error("todo")
+  def dropWhile[A](l: List[A])(f: A => Boolean): List[A] = l match {
+    case Cons(h, t) if f(h) => dropWhile(t)(f)
+    case _ => l
+  }
 
-  def init[A](l: List[A]): List[A] = sys.error("todo")
+  def init[A](l: List[A]): List[A] = l match {
+    case Nil => Nil
+    case Cons(h, Nil) => Nil
+    case Cons(h, t) => Cons(h, init(t))
+  }
 
-  def length[A](l: List[A]): Int = sys.error("todo")
+  def length[A](l: List[A]): Int = foldRight(l, 0)((_, b) => b+1)
 
-  def foldLeft[A,B](l: List[A], z: B)(f: (B, A) => B): B = sys.error("todo")
+  def foldLeft[A,B](l: List[A], z: B)(f: (B, A) => B): B =
+    l match {
+      case Nil => z
+      case Cons(h, t) => foldLeft(t, f(z,h))(f)
+    }
 
-  def map[A,B](l: List[A])(f: A => B): List[B] = sys.error("todo")
+  def sumLeft (l: List[Int]): Int = foldLeft(l, 0)(_ + _)
+  def productLeft (ds: List[Double]): Double = foldLeft(ds, 1.0)(_ * _)
+  def lengthLeft[A](l: List[A]): Int = foldLeft(l,0)((b, _) => b + 1)
+
+  def reverse[A] (l: List[A]): List[A] =
+    foldLeft(l, Nil:List[A])((b, a) => Cons(a, b))
+
+  def appendR[A] (l: List[A], r: List[A]): List[A] =
+    foldRight(l, r)(Cons(_, _))
+
+
+  def flatten[A] (l: List[List[A]]): List[A] =
+    foldRight(l, Nil:List[A])(append)
+
+  def map[A,B](l: List[A])(f: A => B): List[B] =
+    foldRight(l, Nil: List[B])((h, a) => Cons(f(h), a))
+
+  def add1 (l:List[Int]): List[Int] = map(l)(_+1)
+  def strigier (l:List[Double]): List[String] = map(l)(_.toString)
+
+  def filter[A](l: List[A])(f: A => Boolean): List[A] =
+    foldLeft(l, Nil:List[A])((b, a) => f(a) match {
+      case true => Cons(a, b)
+      case _ => b
+    })
 }
