@@ -112,4 +112,15 @@ object List { // `List` companion object. Contains functions for creating and wo
       case false => Nil
     }}
   }
+
+  def zip[A, B](la: List[A], lb: List[B]):List[(A,B)] = (la, lb) match {
+    case (Nil, _) => Nil
+    case (_, Nil) => Nil
+    case (Cons(ha, ta), Cons(hb, tb)) => Cons((ha, hb), zip(ta, tb))
+  }
+
+  def zipWith[A, B, C](la: List[A], lb: List[B])(f: (A, B) => C): List[C] =
+    map(zip(la, lb))(Function.tupled(f))
+
+  def zipAdd(la: List[Int], lb: List[Int]): List[Int] = zipWith(la, lb)(_ + _)
 }
