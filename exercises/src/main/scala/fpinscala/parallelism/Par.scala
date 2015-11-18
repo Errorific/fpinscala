@@ -22,16 +22,49 @@ object Par {
       val bf = b(es)
       UnitFuture(f(af.get, bf.get)) // This implementation of `map2` does _not_ respect timeouts, and eagerly waits for the returned futures. This means that even if you have passed in "forked" arguments, using this map2 on them will make them wait. It simply passes the `ExecutorService` on to both `Par` values, waits for the results of the Futures `af` and `bf`, applies `f` to them, and wraps them in a `UnitFuture`. In order to respect timeouts, we'd need a new `Future` implementation that records the amount of time spent evaluating `af`, then subtracts that time from the available time allocated for evaluating `bf`.
     }
+
+  def map3[A,B,C,D](pa:Par[A], pb:Par[B], pc:Par[C])(f: (A,B,C) => D): Par[D] = {
+    val stage1 = map2(pa, pb){(a, b) => (x:C) => f(a,b,x)}
+    map2(stage1, pc)(_(_))
+  }
   
   def fork[A](a: => Par[A]): Par[A] = // This is the simplest and most natural implementation of `fork`, but there are some problems with it--for one, the outer `Callable` will block waiting for the "inner" task to complete. Since this blocking occupies a thread in our thread pool, or whatever resource backs the `ExecutorService`, this implies that we're losing out on some potential parallelism. Essentially, we're using two threads when one should suffice. This is a symptom of a more serious problem with the implementation, and we will discuss this later in the chapter.
     es => es.submit(new Callable[A] { 
       def call = a(es).get
     })
 
+  def lazyUnit[A](a: => A): Par[A] = fork(unit(a))
+
+  def asyncF[A,B](f: A => B): A => Par[B] =
+    a => lazyUnit(f(a))
+
   def map[A,B](pa: Par[A])(f: A => B): Par[B] = 
     map2(pa, unit(()))((a,_) => f(a))
 
   def sortPar(parList: Par[List[Int]]) = map(parList)(_.sorted)
+
+  def sequence[A](ps: List[Par[A]]): Par[List[A]] = 
+    ps.foldRight[Par[List[A]]](unit(Nil))(map2(_, _)(_ :: _))
+
+  def parMap[A,B](ps: List[A])(f: A => B): Par[List[B]] = fork {
+    val fbs: List[Par[B]] = ps.map(asyncF(f))
+    sequence(fbs)
+  }
+
+  def parCountWords(paras: List[String]): Par[Int] = {
+    parFold(0)(paras)(_.split(" +").size, _ + _)
+  }
+
+  def parFold[A, B](init: B)(in: List[A])(mapF: A => B, accF: (B, B) => B): Par[B] = {
+    val mapped = in.map(asyncF(mapF(_)))
+    map(sequence(mapped))(_.foldRight(init)(accF))
+  }
+
+  def parFilter[A](as: List[A])(f: A => Boolean): Par[List[A]] = {
+    val fbs: List[Par[List[A]]] =
+      as.map(asyncF(a => if (f(a)) List(a) else List()))
+    map(sequence(fbs))(_.flatten)
+  }
 
   def equal[A](e: ExecutorService)(p: Par[A], p2: Par[A]): Boolean = 
     p(e).get == p2(e).get
@@ -43,6 +76,34 @@ object Par {
     es => 
       if (run(es)(cond).get) t(es) // Notice we are blocking on the result of `cond`.
       else f(es)
+
+  def choiceN[A](n: Par[Int])(choices: List[Par[A]]): Par[A] = es => {
+    val ng = run(es)(n).get
+    run(es)(choices(ng))
+  }
+
+  def choiceB[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] = {
+    val bt = map(cond){
+      case false => 0
+      case true => 1
+    }
+    choiceN(bt)(List(f, t))
+  }
+
+  def chooser[A,B](pa: Par[A])(choices: A => Par[B]): Par[B] = es => {
+    val choice = run(es)(pa).get
+    run(es)(choices(choice))
+  }
+
+  def choicer[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] =
+    chooser(cond){
+      case true => t
+      case false => f
+    }
+
+  def choicerN[A](n: Par[Int])(choices: List[Par[A]]): Par[A] =
+    chooser(n)(choices(_))
+
 
   /* Gives us infix syntax for `Par`. */
   implicit def toParOps[A](p: Par[A]): ParOps[A] = new ParOps(p)
