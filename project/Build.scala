@@ -14,19 +14,24 @@ object FPInScalaBuild extends Build {
   )
 
   lazy val root =
-    Project(id = "fpinscala",
-            base = file("."),
+    Project(id = "exercises",
+            base = file("exercises"),
             settings = opts ++ Seq(
               onLoadMessage ~= (_ + nio2check())
             ))// aggregate (chapterCode, exercises, answers)
+    // Project(id = "fpinscala",
+    //         base = file("."),
+    //         settings = opts ++ Seq(
+    //           onLoadMessage ~= (_ + nio2check())
+    //         ))// aggregate (chapterCode, exercises, answers)
   // lazy val chapterCode =
   //   Project(id = "chapter-code",
   //           base = file("chaptercode"),
   //           settings = opts)
-  lazy val exercises =
-    Project(id = "exercises",
-            base = file("exercises"),
-            settings = opts)
+  // lazy val exercises =
+  //   Project(id = "exercises",
+  //           base = file("exercises"),
+  //           settings = opts)
   // lazy val answers =
   //   Project(id = "answers",
   //           base = file("answers"),

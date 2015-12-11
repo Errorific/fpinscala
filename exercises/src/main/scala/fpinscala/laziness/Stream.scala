@@ -87,11 +87,15 @@ trait Stream[+A] {
     f(h) append t
   }
 
-  def zipWith[B](s: Stream[B]): Stream[(A, B)] = unfold((this, s)){
+  def zipWith[B,C](s: Stream[B])(f: (A,B) => C): Stream[C] = unfold((this, s)){
     case((_, Empty)) => None
     case((Empty, _)) => None
-    case(Cons(h, t), Cons(sh, st)) => Some(((h(), sh()), (t(), st())))
+    case(Cons(h, t), Cons(sh, st)) => Some((f(h(), sh()), (t(), st())))
   }
+
+  // special case of `zip`
+  def zip[B](s2: Stream[B]): Stream[(A,B)] =
+    zipWith(s2)((_,_))
 
   def zipAll[B](s: Stream[B]): Stream[(Option[A],Option[B])] = unfold((this, s)){
     case ((Empty, Empty)) => None
