@@ -14,6 +14,10 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
   def char(c: Char): Parser[Char] = string(c.toString) map (_.charAt(0))
   def or[A](s1: Parser[A], s2: => Parser[A]): Parser[A]
 
+  def scope[A](msg: String)(p: Parser[A]): Parser[A]
+  def attempt[A](p: Parser[A]): Parser[A]
+  def label[A](msg: String)(p: Parser[A]): Parser[A]
+
   // Ex 9.3
   def many[A](p: Parser[A]): Parser[List[A]] =
     or(map2(p, many(p))(_ :: _), succeed(List()))
@@ -80,6 +84,9 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
     def slice: Parser[String] = self.slice(p)
   }
 
+  def errorMessage(e: ParseError): String
+  def errorLocation(e: ParseError): Location
+
   object Laws {
     def equal[A](p1: Parser[A], p2: Parser[A])(in: Gen[String]): Prop =
       forAll(in)(s => run(p1)(s) == run(p2)(s))
@@ -91,6 +98,14 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
     // tests associativity
     def productLaw[A,B](p: Parser[A], p2: Parser[B], p3: Parser[B])(in: Gen[String], in2: Gen[String]): Prop =
       forAll(in)(s => (p ** p2) ** p3 == p ** (p2 ** p3))
+
+    def labelLaw[A](p: Parser[A], inputs: SGen[String]): Prop =
+      forAll(inputs ** Gen.string) { case (input, msg) =>
+        run(label(msg)(p))(input) match {
+          case Left(e) => errorMessage(e) == msg
+          case _ => true
+        }
+      }
   }
 
   trait JSON
@@ -143,4 +158,8 @@ case class Location(input: String, offset: Int = 0) {
 
 case class ParseError(stack: List[(Location,String)] = List(),
                       otherFailures: List[ParseError] = List()) {
+}
+
+class MyParser[+A] {
+
 }
